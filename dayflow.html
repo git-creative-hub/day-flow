@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DayFlow</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f0e; --surface: #1a1a18; --surface2: #242422;
+    --border: #2e2e2a; --accent: #d4a843; --accent2: #8fb87a;
+    --text: #e8e4dc; --text2: #9a9590; --text3: #5a5650;
+    --danger: #c06050; --rollover: #7a9fc0;
+  }
+  body { font-family: 'DM Mono', monospace; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+  .header { padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .logo { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: var(--accent); letter-spacing: 0.02em; }
+  .logo span { color: var(--text2); font-size: 0.75rem; font-family: 'DM Mono'; margin-left: 10px; }
+  .view-tabs { display: flex; gap: 4px; }
+  .tab { padding: 6px 14px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-family: 'DM Mono', monospace; font-size: 0.72rem; cursor: pointer; letter-spacing: 0.08em; text-transform: uppercase; transition: all 0.15s; border-radius: 3px; }
+  .tab:hover { border-color: var(--accent); color: var(--accent); }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  .app-body { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 61px); }
+  .sidebar { width: 280px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; overflow-y: auto; }
+  .cal-header { padding: 16px 18px 10px; display: flex; align-items: center; justify-content: space-between; }
+  .cal-month { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--text); }
+  .cal-nav { display: flex; gap: 6px; }
+  .cal-nav button { background: none; border: 1px solid var(--border); color: var(--text2); width: 26px; height: 26px; cursor: pointer; font-size: 0.8rem; border-radius: 3px; transition: all 0.15s; }
+  .cal-nav button:hover { border-color: var(--accent); color: var(--accent); }
+  .cal-grid { padding: 0 10px 10px; }
+  .cal-dow { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px; }
+  .cal-dow span { text-align: center; font-size: 0.62rem; color: var(--text3); letter-spacing: 0.1em; padding: 4px 0; text-transform: uppercase; }
+  .cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; cursor: pointer; border-radius: 4px; transition: all 0.12s; position: relative; color: var(--text2); border: 1px solid transparent; }
+  .cal-day:hover { background: var(--surface2); color: var(--text); }
+  .cal-day.today { color: var(--accent); border-color: var(--accent); font-weight: 500; }
+  .cal-day.selected { background: var(--accent); color: var(--bg) !important; border-color: var(--accent); }
+  .cal-day.empty { cursor: default; }
+  .cal-day .dot { position: absolute; bottom: 3px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--accent2); }
+  .cal-day.selected .dot { background: var(--bg); }
+  .backlog { border-top: 1px solid var(--border); padding: 14px 14px 16px; flex: 1; }
+  .backlog-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text3); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .backlog-title .badge { background: var(--rollover); color: var(--bg); border-radius: 10px; padding: 1px 7px; font-size: 0.6rem; }
+  .backlog-item { padding: 7px 10px; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 5px; font-size: 0.72rem; color: var(--text2); display: flex; justify-content: space-between; align-items: center; background: var(--surface2); gap: 6px; }
+  .backlog-item-text { flex: 1; font-size: 0.7rem; }
+  .backlog-item-from { font-size: 0.6rem; color: var(--rollover); }
+  .backlog-add-btn { background: var(--rollover); border: none; color: var(--bg); font-size: 0.65rem; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-family: 'DM Mono'; flex-shrink: 0; white-space: nowrap; transition: opacity 0.15s; }
+  .backlog-add-btn:hover { opacity: 0.8; }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .day-view { display: flex; flex-direction: column; flex: 1; overflow: hidden; padding: 28px 32px; }
+  .day-header { margin-bottom: 26px; }
+  .day-date { font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--text); line-height: 1.1; }
+  .day-sub { font-size: 0.7rem; color: var(--text3); margin-top: 4px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .task-input-row { display: flex; gap: 8px; margin-bottom: 24px; }
+  .task-input { flex: 1; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'DM Mono'; font-size: 0.82rem; padding: 10px 14px; border-radius: 4px; outline: none; transition: border-color 0.15s; }
+  .task-input:focus { border-color: var(--accent); }
+  .task-input::placeholder { color: var(--text3); }
+  .add-btn { background: var(--accent); border: none; color: var(--bg); font-family: 'DM Mono'; font-size: 0.75rem; padding: 10px 18px; border-radius: 4px; cursor: pointer; letter-spacing: 0.06em; transition: opacity 0.15s; white-space: nowrap; }
+  .add-btn:hover { opacity: 0.85; }
+  .tasks-section-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--text3); margin-bottom: 10px; }
+  .tasks-list { flex: 1; overflow-y: auto; }
+  .tasks-list::-webkit-scrollbar { width: 4px; }
+  .tasks-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .task-item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border: 1px solid var(--border); border-radius: 5px; margin-bottom: 7px; background: var(--surface); transition: all 0.15s; }
+  .task-item:hover { border-color: var(--surface2); background: var(--surface2); }
+  .task-item.done { opacity: 0.45; }
+  .task-item.done .task-label { text-decoration: line-through; color: var(--text3); }
+  .check-btn { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); background: transparent; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; font-size: 0.7rem; }
+  .check-btn:hover { border-color: var(--accent2); }
+  .task-item.done .check-btn { background: var(--accent2); border-color: var(--accent2); color: var(--bg); }
+  .task-label { flex: 1; font-size: 0.8rem; color: var(--text); }
+  .task-tag { font-size: 0.6rem; padding: 2px 8px; border-radius: 10px; letter-spacing: 0.06em; }
+  .tag-today { background: rgba(212,168,67,0.15); color: var(--accent); border: 1px solid rgba(212,168,67,0.25); }
+  .tag-rolled { background: rgba(122,159,192,0.15); color: var(--rollover); border: 1px solid rgba(122,159,192,0.25); }
+  .del-btn { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 0.8rem; padding: 2px 4px; transition: color 0.12s; border-radius: 3px; }
+  .del-btn:hover { color: var(--danger); }
+  .week-view { flex: 1; overflow-y: auto; padding: 24px 28px; }
+  .week-header { margin-bottom: 22px; }
+  .week-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; }
+  .week-sub { font-size: 0.68rem; color: var(--text3); margin-top: 3px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+  .week-col { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px 10px; min-height: 160px; transition: border-color 0.15s; cursor: pointer; }
+  .week-col:hover { border-color: var(--accent); }
+  .week-col.today-col { border-color: rgba(212,168,67,0.4); }
+  .week-col-header { margin-bottom: 10px; }
+  .week-dow { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); }
+  .week-num { font-family: 'Playfair Display', serif; font-size: 1.3rem; color: var(--text); line-height: 1.1; }
+  .week-col.today-col .week-num { color: var(--accent); }
+  .week-task-mini { font-size: 0.62rem; padding: 4px 7px; border-radius: 3px; margin-bottom: 4px; border: 1px solid var(--border); color: var(--text2); background: var(--surface2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .week-task-mini.done { text-decoration: line-through; opacity: 0.4; }
+  .week-more { font-size: 0.6rem; color: var(--text3); margin-top: 3px; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
+  .empty-state .icon { font-size: 2rem; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state p { font-size: 0.78rem; line-height: 1.6; }
+  .stats-bar { border-top: 1px solid var(--border); padding: 10px 32px; display: flex; gap: 24px; background: var(--surface); align-items: center; }
+  .stat { font-size: 0.65rem; color: var(--text3); }
+  .stat strong { color: var(--accent); font-weight: 500; }
+  .stat.green strong { color: var(--accent2); }
+  .stat.blue strong { color: var(--rollover); }
+  .progress-bar-wrap { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--accent2); border-radius: 2px; transition: width 0.3s ease; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">DayFlow <span>personal planner</span></div>
+  <div class="view-tabs">
+    <button class="tab active" onclick="setView('day')">Today</button>
+    <button class="tab" onclick="setView('week')">Week</button>
+  </div>
+</div>
+<div class="app-body">
+  <div class="sidebar">
+    <div class="cal-header">
+      <div class="cal-month" id="calMonth"></div>
+      <div class="cal-nav">
+        <button onclick="changeMonth(-1)">&#8249;</button>
+        <button onclick="changeMonth(1)">&#8250;</button>
+      </div>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-dow"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+      <div class="cal-days" id="calDays"></div>
+    </div>
+    <div class="backlog">
+      <div class="backlog-title">Weekly Backlog <span class="badge" id="backlogBadge">0</span></div>
+      <div id="backlogList"></div>
+    </div>
+  </div>
+  <div class="main">
+    <div class="day-view" id="dayView">
+      <div class="day-header">
+        <div class="day-date" id="dayDate"></div>
+        <div class="day-sub" id="daySub"></div>
+      </div>
+      <div class="task-input-row">
+        <input class="task-input" id="taskInput" placeholder="Add a task for today&#x2026;" onkeydown="handleKey(event)" />
+        <button class="add-btn" onclick="addTask()">+ Add</button>
+      </div>
+      <div class="tasks-section-label" id="taskLabel">Tasks</div>
+      <div class="tasks-list" id="taskList"></div>
+    </div>
+    <div class="week-view" id="weekView" style="display:none">
+      <div class="week-header">
+        <div class="week-title" id="weekTitle"></div>
+        <div class="week-sub">Click any day to open it</div>
+      </div>
+      <div class="week-grid" id="weekGrid"></div>
+    </div>
+    <div class="stats-bar" id="statsBar">
+      <div class="stat">Total <strong id="statTotal">0</strong></div>
+      <div class="stat green">Done <strong id="statDone">0</strong></div>
+      <div class="stat blue">Rolled <strong id="statRolled">0</strong></div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+  </div>
+</div>
+<script>
+let data = {}, backlog = [];
+let viewDate = new Date(), calDate = new Date(), currentView = 'day';
+
+function loadData() {
+  try { data = JSON.parse(localStorage.getItem('dayflow_tasks') || '{}'); backlog = JSON.parse(localStorage.getItem('dayflow_backlog') || '[]'); }
+  catch(e) { data = {}; backlog = []; }
+}
+function saveData() {
+  localStorage.setItem('dayflow_tasks', JSON.stringify(data));
+  localStorage.setItem('dayflow_backlog', JSON.stringify(backlog));
+}
+function dateKey(d) { return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+const TODAY = dateKey(new Date());
+const DOW = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function checkRollover() {
+  const last = localStorage.getItem('dayflow_last');
+  if (last && last !== TODAY) {
+    Object.keys(data).forEach(dk => {
+      if (dk < TODAY) {
+        (data[dk]||[]).filter(t=>!t.done&&!t.rolled).forEach(t => {
+          t.rolled = true;
+          backlog.push({id:t.id, text:t.text, fromDate:dk, addedAt:Date.now()});
+        });
+      }
+    });
+    saveData();
+  }
+  localStorage.setItem('dayflow_last', TODAY);
+}
+
+function addTask() {
+  const inp = document.getElementById('taskInput');
+  const text = inp.value.trim();
+  if (!text) return;
+  const key = dateKey(viewDate);
+  if (!data[key]) data[key] = [];
+  data[key].push({id:Date.now().toString(), text, done:false, rolled:false, createdAt:Date.now()});
+  saveData(); inp.value = ''; renderAll();
+}
+function handleKey(e) { if (e.key==='Enter') addTask(); }
+function toggleTask(key, id) {
+  const t = (data[key]||[]).find(t=>t.id===id);
+  if (t) { t.done=!t.done; saveData(); renderAll(); }
+}
+function deleteTask(key, id) {
+  if (data[key]) { data[key]=data[key].filter(t=>t.id!==id); saveData(); renderAll(); }
+}
+function addBacklogToDay(bid) {
+  const item = backlog.find(b=>b.id===bid); if (!item) return;
+  const key = dateKey(viewDate);
+  if (!data[key]) data[key]=[];
+  data[key].push({id:Date.now().toString(), text:item.text, done:false, rolled:true, createdAt:Date.now()});
+  backlog = backlog.filter(b=>b.id!==bid);
+  saveData(); setView('day'); renderAll();
+}
+
+function renderAll() { renderCalendar(); renderBacklog(); if (currentView==='day') renderDayView(); else renderWeekView(); renderStats(); }
+
+function renderCalendar() {
+  const y=calDate.getFullYear(), m=calDate.getMonth();
+  document.getElementById('calMonth').textContent = MONTHS[m]+' '+y;
+  const first=new Date(y,m,1).getDay(), days=new Date(y,m+1,0).getDate();
+  const c=document.getElementById('calDays'); c.innerHTML='';
+  for(let i=0;i<first;i++){const el=document.createElement('div');el.className='cal-day empty';c.appendChild(el);}
+  for(let d=1;d<=days;d++){
+    const el=document.createElement('div'); el.className='cal-day';
+    const td=new Date(y,m,d), key=dateKey(td);
+    if(key===TODAY) el.classList.add('today');
+    if(key===dateKey(viewDate)) el.classList.add('selected');
+    el.textContent=d;
+    if((data[key]||[]).length){const dot=document.createElement('div');dot.className='dot';el.appendChild(dot);}
+    el.onclick=()=>selectDay(td); c.appendChild(el);
+  }
+}
+function selectDay(d){viewDate=d;setView('day');renderAll();}
+function changeMonth(dir){calDate=new Date(calDate.getFullYear(),calDate.getMonth()+dir,1);renderCalendar();}
+
+function renderBacklog() {
+  const list=document.getElementById('backlogList');
+  document.getElementById('backlogBadge').textContent=backlog.length;
+  if(!backlog.length){list.innerHTML='<div style="font-size:0.68rem;color:var(--text3);padding:4px 2px">All clear — no rolled tasks.</div>';return;}
+  list.innerHTML='';
+  backlog.slice().reverse().forEach(item=>{
+    const el=document.createElement('div'); el.className='backlog-item';
+    const fd=new Date(item.fromDate+'T00:00:00');
+    el.innerHTML=`<div><div class="backlog-item-text">${esc(item.text)}</div><div class="backlog-item-from">from ${fd.getMonth()+1}/${fd.getDate()}</div></div><button class="backlog-add-btn" onclick="addBacklogToDay('${item.id}')">&#x2192; Today</button>`;
+    list.appendChild(el);
+  });
+}
+
+function renderDayView() {
+  const key=dateKey(viewDate), isToday=key===TODAY;
+  document.getElementById('dayDate').textContent=`${DOW[viewDate.getDay()]}, ${viewDate.getDate()} ${MONTHS[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+  document.getElementById('daySub').textContent=isToday?'Today':(key<TODAY?'Past day':'Future day');
+  const tasks=data[key]||[];
+  document.getElementById('taskLabel').textContent=tasks.length?`${tasks.filter(t=>!t.done).length} remaining \u00B7 ${tasks.filter(t=>t.done).length} done`:'No tasks yet';
+  const list=document.getElementById('taskList'); list.innerHTML='';
+  if(!tasks.length){list.innerHTML='<div class="empty-state"><div class="icon">&#9702;</div><p>No tasks for this day.<br>Add something above.</p></div>';return;}
+  [...tasks.filter(t=>!t.done),...tasks.filter(t=>t.done)].forEach(task=>{
+    const el=document.createElement('div'); el.className='task-item'+(task.done?' done':'');
+    el.innerHTML=`<button class="check-btn" onclick="toggleTask('${key}','${task.id}')">${task.done?'&#10003;':''}</button><div class="task-label">${esc(task.text)}</div><span class="task-tag ${task.rolled?'tag-rolled':'tag-today'}">${task.rolled?'rolled':'today'}</span><button class="del-btn" onclick="deleteTask('${key}','${task.id}')">&#x2715;</button>`;
+    list.appendChild(el);
+  });
+}
+
+function renderWeekView() {
+  const start=new Date(viewDate); start.setDate(start.getDate()-start.getDay());
+  document.getElementById('weekTitle').textContent=`Week of ${MONTHS[start.getMonth()]} ${start.getDate()}`;
+  const grid=document.getElementById('weekGrid'); grid.innerHTML='';
+  for(let i=0;i<7;i++){
+    const d=new Date(start); d.setDate(start.getDate()+i);
+    const key=dateKey(d), tasks=data[key]||[];
+    const col=document.createElement('div'); col.className='week-col'+(key===TODAY?' today-col':'');
+    col.onclick=()=>selectDay(d);
+    col.innerHTML=`<div class="week-col-header"><div class="week-dow">${DOW[d.getDay()].slice(0,3)}</div><div class="week-num">${d.getDate()}</div></div>`;
+    tasks.slice(0,4).forEach(t=>{const ti=document.createElement('div');ti.className='week-task-mini'+(t.done?' done':'');ti.textContent=t.text;col.appendChild(ti);});
+    if(tasks.length>4){const m=document.createElement('div');m.className='week-more';m.textContent=`+${tasks.length-4} more`;col.appendChild(m);}
+    grid.appendChild(col);
+  }
+}
+
+function renderStats() {
+  const tasks=data[dateKey(viewDate)]||[];
+  const total=tasks.length, done=tasks.filter(t=>t.done).length, rolled=tasks.filter(t=>t.rolled).length;
+  document.getElementById('statTotal').textContent=total;
+  document.getElementById('statDone').textContent=done;
+  document.getElementById('statRolled').textContent=rolled;
+  document.getElementById('progressFill').style.width=(total?Math.round(done/total*100):0)+'%';
+}
+
+function setView(v) {
+  currentView=v;
+  document.getElementById('dayView').style.display=v==='day'?'flex':'none';
+  document.getElementById('weekView').style.display=v==='week'?'flex':'none';
+  document.getElementById('statsBar').style.display=v==='day'?'flex':'none';
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',(i===0&&v==='day')||(i===1&&v==='week')));
+  if(v==='week') renderWeekView(); else renderDayView();
+}
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+loadData(); checkRollover(); renderAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    font-family: 'DM Mono', monospace;
+    background: #0f0f0e;
+    color: #e8e4dc;
+    min-height: 100vh;
+  }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2e2e2a; border-radius: 2px; }
+}
